@@ -1,3 +1,3 @@
-#JAVA Game
+# JAVA Game
 
 ![screenshot](Screenshots/Unbenannt.jpg)
