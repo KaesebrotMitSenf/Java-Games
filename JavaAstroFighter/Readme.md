@@ -1,2 +1,3 @@
 JAVA Game
-![screenshot](/Screenshots/Unbenannt.jpg)
+
+![screenshot](Screenshots/Unbenannt.jpg)
