@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+
+<head>
+	<title>Canvas-2D</title>
+
+	<link href="https://fonts.googleapis.com/css?family=Oleo Script Swash Caps" rel="stylesheet">
+
+	<!-- page styles -->
+	<style>
+		body {
+			background-color: black;
+			margin: 0;
+			padding: 0;
+			position:relative;
+			width:  100%;
+  			height: 100%;
+		}
+
+		canvas {
+			padding-left: 0;
+			padding-right: 0;
+			margin-left: auto;
+			margin-right: auto;
+			display: block;
+			
+		}
+
+		input {
+			font-size:14px;
+			font-family: 'Oleo Script Swash Caps';
+		}
+
+		div {
+			font-size:128pt;
+			font-family: 'Oleo Script Swash Caps';
+			text-shadow: 7px 7px 7px black;
+			color: yellow;
+			-webkit-text-stroke-width: 5px;
+   			-webkit-text-stroke-color: black;
+		}
+
+		img {
+			filter: drop-shadow(5px 5px 5px #222);
+		}
+
+	</style>
+
+</head>
+
+<!-- empty body -->
+
+<body>
+<div style="position:absolute; top:10px; left:50%; transform:translate(-50%, 0);">Giana Sisters</div>
+<input type="text" style="position:absolute; right:40px; top:40px; padding:20px;border-radius:10px;" />
+<img src="dev.png" style="position:absolute; bottom:40px; left:40px;" />
+<img src="heart.png" style="position:absolute; left:40px; top:40px" />
+<img src="heart.png" style="position:absolute; left:240px; top:40px" />
+<img src="heart.png" style="position:absolute; left:440px; top:40px" />
+</body>
+
+<!-- includes -->
+<script src="cloud.js"></script>
+<script src="crab.js"></script>
+
+<!-- game logic -->
+<script>
+
+	// load images
+	var loadimg = new Image();
+	loadimg.src = "g4508_small.png";
+
+	var shoot = new Image();
+	shoot.src = "g4764klein.png";
+
+	var bg = new Image();
+	bg.src = "Untitled-1.png";
+
+	var tile_V = new Image();
+	tile_V.src = "v.png";
+
+	var tile_B = new Image();
+	tile_B.src = "b.png";
+
+	var tile_M = new Image();
+	tile_M.src = "m.png";
+
+	var arrow_64 = new Image();
+	arrow_64.src = "arrow_64.png";
+
+	var barrel = new Image();
+	barrel.src = "barrel.png";
+
+	// create game data/ parameters
+	var map =
+		"                                " +
+		"V    V          VVV    BBBBBB   " +
+		"BBBBBBBB B B BBBB  BBB          " +
+		"                             BB " +
+		"  V   BBBBBBBB             BB   " +
+		"BBBBBB                   BB     " +
+		"                       BB       " +
+		"                     BB         " +
+		"                   BB           " +
+		"BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB";
+
+	var mapsize_x = 32;
+	var mapsize_y = 10;
+	var tile_size = 128;
+
+	var jump = false;
+	var falling = false;
+	var jump_rdy = true;
+
+	var shooting = false;
+
+	var debug = true;
+
+	// etc
+	var px = 128 + 64;
+	var py = 64;
+
+	var d = 0;
+	var t = 8;
+	var jump_height = 350;
+	var current_jump = 0;
+
+	var c = 0;
+	var clouds = [];
+	var barrels = [];
+	var crabs = [];
+	var skeletons = [];
+	var projectiles = [];
+
+	// create clouds
+	for (let i = 0; i < 4; i++) {
+		let c = new Cloud(Math.random() * tile_size*mapsize_x, Math.random() * tile_size*mapsize_y );
+		clouds.push(c);
+	}
+
+	// create crabs
+	for (let i = 0; i < 10; i++) {
+		let c = new Crab(Math.random() * tile_size*mapsize_x, Math.random() * tile_size*mapsize_y );
+		crabs.push(c);
+	}
+
+	////////////////////////////////////////////////////////////////////////////
+	// GAME START
+	////////////////////////////////////////////////////////////////////////////
+
+	//add a canvas to the body and get a context
+	var cvs = document.createElement("canvas");
+	document.body.appendChild(cvs);
+	var ctx = cvs.getContext("2d");
+
+	// register event listener for the keyboard
+	window.addEventListener('keydown', onKeyDown);
+	window.addEventListener('keyup', onKeyUp);
+
+	// start the gameloop
+	gameLoop();
+
+	////////////////////////////////////////////////////////////////////////////
+	// MAIN LOOP
+	////////////////////////////////////////////////////////////////////////////
+	function gameLoop() {
+		window.requestAnimationFrame(gameLoop);
+		update();
+		render();
+	}
+
+	////////////////////////////////////////////////////////////////////////////
+	// UPDATE
+	////////////////////////////////////////////////////////////////////////////
+	function update() {
+		//update clouds:
+		for (let i = 0; i < clouds.length; i++) {
+			clouds[i].update();
+		}
+
+		//update crabss:
+		for (let i = 0; i < crabs.length; i++) {
+			crabs[i].update();
+		}
+
+		// jump logic
+		if (jump) {
+			if (current_jump < jump_height) {
+				if (!falling) {
+					current_jump += 10;
+					py = py - (jump_height - current_jump) / 20;
+				}
+			} else {
+				current_jump = 0;
+				jump = false;
+				falling = true;
+			}
+		}
+
+		//calculate player map position
+		var mx = Math.floor(px / tile_size);
+		var my = Math.floor(py / tile_size);
+
+		if (c == 1) {
+			if (map[map_position(mx - 1, my)] != "B") {
+				if (map[map_position(mx - 1, my + 1)] == "B") {
+					if ((((my + 1) * tile_size)) - py >= 100) {
+						if (jump) {
+							px = px - 5;
+						} else if (falling) {
+							px = px - 5;
+						} else {
+							px = px - 5
+						}
+					}
+				} else {
+					if (jump) {
+						px = px - 5;
+					} else if (falling) {
+						px = px - 5;
+					} else {
+						px = px - 5
+					}
+				}
+			} else {
+				if (px - ((mx - 1) * tile_size + 64) > 128) {
+					if (jump) {
+						px = px - 5;
+					} else if (falling) {
+						px = px - 5;
+					} else {
+						px = px - 5
+					}
+				}
+			}
+		}
+
+		if (c == 2) {
+			if (map[map_position(mx + 1, my)] != "B") {
+				if (map[map_position(mx + 1, my + 1)] == "B") {
+					if ((((my + 1) * tile_size)) - py >= 100) {
+						if (jump) {
+							px = px + 5;
+						} else if (falling) {
+							px = px + 5;
+						} else {
+							px = px + 5
+						}
+					}
+				} else {
+					if (jump) {
+						px = px + 5;
+					} else if (falling) {
+						px = px + 5;
+					} else {
+						px = px + 5
+					}
+				}
+			} else {
+				if ((((mx + 1) * tile_size) + 64) - px > 128) {
+					if (jump) {
+						px = px + 5;
+					} else if (falling) {
+						px = px + 5;
+					} else {
+						px = px + 5
+					}
+				}
+			}
+		}
+
+		if (!jump) {
+
+			if (map[map_position(mx, my + 1)] != "B") {
+				t = t * 1.05;
+				py = py + t;
+
+			} else {
+				if ((((my + 1) * tile_size) + 64) - py > 164) {
+					t = t * 1.05;
+					py = py + t;
+				} else {
+					py = (my + 1) * tile_size - 100;
+					falling = false;
+					t = 8;
+				}
+			}
+		}
+
+	}
+
+	////////////////////////////////////////////////////////////////////////////
+	// RENDER
+	////////////////////////////////////////////////////////////////////////////
+	function render() {
+		//ctx.clearRect(0,0,920,600);
+		cvs.width = window.innerWidth;
+		cvs.height = window.innerHeight;
+		
+		ctx.fillStyle = "#0088cc";
+		ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+
+		//if debug mode is on: draw transparent tiles
+		if (debug) {
+			ctx.globalAlpha = 0.8;
+			for (var i = 0; i < mapsize_x; i++) {
+				for (var j = 0; j < mapsize_y; j++) {
+					x = i * tile_size;
+					y = j * tile_size;
+					var m = (j * mapsize_x) + (i);
+
+					switch (map[m]) {
+						case " ":
+							ctx.drawImage(tile_M, cvs.width / 2 + x - px, cvs.height / 2 + y - py, tile_size, tile_size);
+							break;
+						case "B":
+							ctx.drawImage(tile_B, cvs.width / 2 + x - px, cvs.height / 2 + y - py, tile_size, tile_size);
+							break;
+						case "V":
+							ctx.drawImage(tile_V, cvs.width / 2 + x - px, cvs.height / 2 + y - py, tile_size, tile_size);
+						default:
+
+					}
+				}
+			}
+			ctx.globalAlpha = 1.0;
+		}
+
+		//draw clouds:
+		for (let i = 0; i < clouds.length; i++) {
+			clouds[i].draw(ctx);
+		}
+
+		//draw crabs:
+		for (let i = 0; i < crabs.length; i++) {
+			crabs[i].draw(ctx);
+		}
+
+		// floor images
+		ctx.drawImage(bg, cvs.width / 2 - px, cvs.height / 2 - py, tile_size * 4, tile_size * 4);
+		ctx.drawImage(bg, cvs.width / 2 + tile_size * 4 - px, cvs.height / 2 - py, tile_size * 4, tile_size * 4);
+
+		// go through map and draw tiles
+		for (var i = 0; i < mapsize_x; i++) {
+			for (var j = 0; j < mapsize_y; j++) {
+				x = i * tile_size;
+				y = j * tile_size;
+				var m = (j * mapsize_x) + (i);
+
+				switch (map[m]) {
+					case " ":
+
+						break;
+					case "B":
+
+						break;
+					case "V":
+						ctx.drawImage(barrel, cvs.width / 2 + x - px + 64 - barrel.width / 2, cvs.height / 2 + y + 64 - barrel.height / 2 - py, barrel.width, barrel.height);
+					default:
+
+				}
+			}
+		}
+
+		if (shooting) {
+			ctx.drawImage(shoot, cvs.width / 2 - loadimg.width / 2 - 40, cvs.height / 2 - loadimg.height / 2 + 10);
+		}
+		else {
+			ctx.drawImage(loadimg, cvs.width / 2 - loadimg.width / 2, cvs.height / 2 - loadimg.height / 2);
+		}
+
+		// debug infos for bounding boxes
+		if (debug) {
+			ctx.strokeStyle = "#ff0000";
+			ctx.lineWidth = 5;
+			ctx.strokeRect(cvs.width / 2 - 50, cvs.height / 2 - 100, 100, 200);
+
+			if (d < 360) {
+				d = d + 2;
+			} else {
+				d = 2;
+			}
+
+			ctx.save();
+			ctx.translate(cvs.width / 2, cvs.height / 2);
+			ctx.rotate(d * Math.PI / 180);
+			ctx.drawImage(arrow_64, -32, -32);
+			ctx.restore();
+		}
+	}
+
+	////////////////////////////////////////////////////////////////////////////
+	// EVENTS
+	////////////////////////////////////////////////////////////////////////////
+
+	function onKeyUp(e) {
+		var code = e.keyCode;
+
+		// space
+		if (code == 32) {
+			shooting = false;
+		}
+
+		// strg
+		if (code != 17) { 
+			c = 0;
+		} else {
+			jump_rdy = true;
+			falling = true;
+			jump = false;
+			current_jump = 0;
+		}
+	}
+
+	function onKeyDown(e) {
+		var code = e.keyCode;
+		
+		if (code == 32) {
+			shooting = true;
+		}
+
+		if (code == 17) {
+			if (jump_rdy) {
+				if (!jump) {
+					if (!falling) {
+						jump = true;
+						jump_rdy = false;
+						console.log("jump");
+					}
+				}
+			}
+
+		}
+		if (code == 37)
+			c = 1;
+		else if (code == 39)
+			c = 2;
+
+		else if (code == 40)
+			c = 4;
+
+	}
+
+	////////////////////////////////////////////////////////////////////////////
+	// HELPER
+	////////////////////////////////////////////////////////////////////////////
+	function map_position(map_x, map_y) {
+		return (map_y * mapsize_x) + (map_x);
+	}
+
+</script>
+
+</html>
